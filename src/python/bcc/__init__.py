@@ -617,6 +617,7 @@ class BPF(object):
         ) < 0:
             raise Exception("could not determine address of symbol %s" % symname)
         module_path = ct.cast(sym.module, ct.c_char_p).value.decode()
+        print(module_path)
         lib.bcc_procutils_free(sym.module)
         return module_path, sym.offset
 

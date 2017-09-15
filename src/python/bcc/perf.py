@@ -92,6 +92,7 @@ class Perf(object):
         @staticmethod
         def perf_event_open(tpoint_id, pid=-1, ptype=PERF_TYPE_TRACEPOINT,
                             freq=0):
+                print("sure as hell")
                 attr = Perf.perf_event_attr()
                 attr.config = tpoint_id
                 attr.pid = pid
