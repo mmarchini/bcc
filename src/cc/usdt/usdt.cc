@@ -331,7 +331,7 @@ Context::Context(int pid) : pid_(pid), pid_stat_(pid),
           std::cout << "we can create!!!!@!@!@" << std::endl;
           std::cout << "cmd_bin_path_: " << cmd_bin_path_ << std::endl;
           probes_.emplace_back(
-              new Probe(cmd_bin_path_.c_str(), probes[i].provider, probes[i].probe, 0, pid_, mount_ns_instance_.get()));
+              new Probe(probes[i].module, probes[i].provider, probes[i].probe, 0, pid_, mount_ns_instance_.get()));
           probes_.back()->add_location(probes[i].addr, "");
         }
       }
