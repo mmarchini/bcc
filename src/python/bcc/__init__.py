@@ -606,6 +606,9 @@ class BPF(object):
 
     @classmethod
     def _check_path_symbol(cls, module, symname, addr, pid):
+        # FIXME (mmarchini) bcc_resolve_symname should be able to handle those files
+        if module.startswith("/tmp/BpfUSDTProbe-"):
+            return module, addr
         sym = bcc_symbol()
         psym = ct.pointer(sym)
         c_pid = 0 if pid == -1 else pid
@@ -617,7 +620,6 @@ class BPF(object):
         ) < 0:
             raise Exception("could not determine address of symbol %s" % symname)
         module_path = ct.cast(sym.module, ct.c_char_p).value.decode()
-        print(module_path)
         lib.bcc_procutils_free(sym.module)
         return module_path, sym.offset
 
