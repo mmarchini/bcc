@@ -210,7 +210,6 @@ int Context::_each_module(const char *modpath, uint64_t, uint64_t, bool, void *p
   // Modules may be reported multiple times if they contain more than one
   // executable region. We are going to parse the ELF on disk anyway, so we
   // don't need these duplicates.
-  std::cout << "lorem (each module): " << modpath << std::endl;
   if (ctx->modules_.insert(modpath).second /*inserted new?*/) {
     ProcMountNSGuard g(ctx->mount_ns_instance_.get());
     bcc_elf_foreach_usdt(modpath, _each_probe, p);
@@ -290,7 +289,6 @@ void Context::each_uprobe(each_uprobe_cb callback) {
 
 Context::Context(const std::string &bin_path)
     : mount_ns_instance_(new ProcMountNS(-1)), loaded_(false) {
-  std::cout << "lorem: " << bin_path << std::endl;
   std::string full_path = resolve_bin_path(bin_path);
   if (!full_path.empty()) {
     if (bcc_elf_foreach_usdt(full_path.c_str(), _each_probe, this) == 0) {
@@ -302,7 +300,6 @@ Context::Context(const std::string &bin_path)
 
 Context::Context(int pid) : pid_(pid), pid_stat_(pid),
   mount_ns_instance_(new ProcMountNS(pid)), loaded_(false) {
-  std::cout << "lorem: " << pid << std::endl;
 
   if (bcc_procutils_each_module(pid, _each_module, this) == 0) {
     // get exe command from /proc/<pid>/exe
@@ -324,12 +321,10 @@ Context::Context(int pid) : pid_(pid), pid_stat_(pid),
 
     ret_val = ioctl(file_desc, BPF_USDT_READALL, probes);
     if(ret_val < 0) {
-      std::cout << "Oops" << std::endl;
+      // Something went wrong, skip
     } else {
       for(i=0; i < ret_val; i++) {
         if(probes[i].pid == pid) {
-          std::cout << "we can create!!!!@!@!@" << std::endl;
-          std::cout << "cmd_bin_path_: " << cmd_bin_path_ << std::endl;
           probes_.emplace_back(
               new Probe(probes[i].module, probes[i].provider, probes[i].probe, 0, pid_, mount_ns_instance_.get()));
           probes_.back()->add_location(probes[i].addr, "");
