@@ -33,6 +33,7 @@ from sys import stderr
 from time import sleep
 import argparse
 import signal
+import ipdb
 import os
 import errno
 import multiprocessing
@@ -117,17 +118,18 @@ bpf_text = """
 #include <uapi/linux/bpf_perf_event.h>
 #include <linux/sched.h>
 
-struct key_t {
-    u32 pid;
-    u64 kernel_ip;
-    u64 kernel_ret_ip;
-    int user_stack_id;
-    int kernel_stack_id;
-    char name[TASK_COMM_LEN];
+#define AAA \
+    aux->fp[i] = current_fp; \
+    aux->fpPlus[i] = current_fp + 16; \
+    current_fp = bpf_probe_read(&current_fp, sizeof(current_fp), (void*)current_fp); \
+    i++;
+
+struct auxer {
+    u64 fp[BPF_MAX_STACK_DEPTH];
+    u64 fpPlus[BPF_MAX_STACK_DEPTH];
 };
-BPF_HASH(counts, struct key_t);
-BPF_HASH(start, u32);
-BPF_STACK_TRACE(stack_traces, STACK_STORAGE_SIZE)
+int counter = 0;
+BPF_ARRAY(aux_table, struct auxer);
 
 // This code gets a bit complex. Probably not suitable for casual hacking.
 
@@ -137,32 +139,23 @@ int do_perf_event(struct bpf_perf_event_data *ctx) {
         return 0;
 
     // create map key
-    u64 zero = 0, *val;
-    struct key_t key = {.pid = pid};
-    bpf_get_current_comm(&key.name, sizeof(key.name));
+    int zero = 0;
+    int i = 0;
 
-    // get stacks
-    key.user_stack_id = USER_STACK_GET;
-    key.kernel_stack_id = KERNEL_STACK_GET;
+    struct pt_regs regs = {};
+    bpf_probe_read(&regs, sizeof(regs), (void *)&ctx->regs);
 
-    if (key.kernel_stack_id >= 0) {
-        // populate extras to fix the kernel stack
-        struct pt_regs regs = {};
-        bpf_probe_read(&regs, sizeof(regs), (void *)&ctx->regs);
-        u64 ip = PT_REGS_IP(&regs);
-
-        // if ip isn't sane, leave key ips as zero for later checking
-#ifdef CONFIG_RANDOMIZE_MEMORY
-        if (ip > __PAGE_OFFSET_BASE) {
-#else
-        if (ip > PAGE_OFFSET) {
-#endif
-            key.kernel_ip = ip;
-        }
+    u64 current_fp = PT_REGS_FP(&regs);
+    struct auxer* aux = aux_table.lookup(&zero);
+    if (aux) {
+        AAA;
+        AAA;
+        AAA;
+        AAA;
+        AAA;
     }
 
-    val = counts.lookup_or_init(&key, &zero);
-    (*val)++;
+    // counter++;
     return 0;
 }
 """
@@ -245,8 +238,16 @@ def aksym(addr):
 # output stacks
 missing_stacks = 0
 has_enomem = False
+aux_table = b.get_table("aux_table")
+for addr in aux_table[0].fp:
+    if addr:
+        print("    0x%x %s" % (addr, b.sym(addr, pid, True, True)))
+    else:
+        break
+ipdb.set_trace()
 counts = b.get_table("counts")
 stack_traces = b.get_table("stack_traces")
+
 for k, v in sorted(counts.items(), key=lambda counts: counts[1].value):
     # handle get_stackid erorrs
     if (not args.user_stacks_only and k.kernel_stack_id < 0 and
